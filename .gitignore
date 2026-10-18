@@ -1,0 +1,7 @@
+# dependências
+node_modules/
+
+# lixo de editor/OS
+Thumbs.db
+.DS_Store
+*.swp

@@ -1,0 +1,16 @@
+{
+  "name": "opencode-time",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Mostra data e hora em cada troca de mensagens do OpenCode: carimbo nas mensagens enviadas, hora da última resposta acima do composer e painel /timeline com o histórico datado.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tui": "./src/tui.tsx"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.0.32",
+    "@opentui/core": "0.6.6",
+    "@opentui/solid": "0.6.6",
+    "solid-js": "1.9.17"
+  }
+}
