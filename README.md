@@ -1,68 +1,140 @@
-# opencode-time
+<div align="center">
 
-Plugin do OpenCode que adiciona **data e hora a cada troca de mensagens do chat**:
+# ⏱ opencode-time
 
-| Recurso | O que faz |
-|---|---|
-| **Carimbo nas mensagens** (server plugin, hook `prompt`) | Prefixa `[17/10/2026 20:28] ` no texto de cada mensagem que você envia — o selo aparece no chat e persiste no histórico. O modelo também passa a ver quando cada mensagem foi enviada. |
-| **Stamps em tempo real no composer** (TUI, slot `session.composer.top`) | Linha discreta acima da caixa de input: `você 17/10/2026 20:28 · agente 17/10/2026 20:30` — sempre visível, sem rolar a tela. |
-| **Painel `/historico`** (TUI, slot `session.panel`) | Comando `/historico` abre um painel com o histórico completo da sessão, cada mensagem datada (usuário **e** agente), mais antigo no topo. `Esc` fecha. Observação: o OpenCode tem um `/timeline` **nativo** (só mostra suas mensagens); por isso o nosso comando se chama `/historico`. |
+**Data e hora em cada troca de mensagens do [OpenCode](https://opencode.ai) — sem rolar a tela.**
+
+[17/10/2026 14:32] na sua mensaguem · últimas trocas sempre visíveis acima do composer · painel `/historico` completo
+
+</div>
+
+---
+
+## Como fica no seu chat
+
+**1. Cada mensagem que você envia recebe um selo** (o agente também passa a ver quando cada coisa foi dita):
+
+```text
+[17/10/2026 14:32] por que o build quebrou?
+```
+
+**2. Uma linha discreta acima da caixa de input**, sempre atualizada em tempo real:
+
+```text
+você 17/10/2026 14:32 · agente 17/10/2026 14:38
+```
+
+**3. Painel `/historico`** com toda a conversa datada (usuário **e** agente), mais antigo no topo — `Esc` fecha:
+
+```text
+17/10/2026 14:32 você: por que o build quebrou?
+17/10/2026 14:36 agente: era o lockfile desatualizado...
+```
+
+> ℹ️ O OpenCode v2 tem um painel `/timeline` **nativo** que só lista suas próprias mensagens. Por isso o comando deste plugin se chama `/historico` — o nosso inclui as respostas do agente.
 
 Formato: `dd/mm/aaaa hh:mm` (horário local, 24h).
 
-## Arquivos do código
+## Instalação
+
+Refere-se ao OpenCode **v2.0.32+**.
+
+### Entradas globais (descoberta)
+
+Crie os dois entrypoints apontando para o clone deste repositório:
 
 ```
-D:\sandbox\OpenCode_Plugins\time\   ← código-fonte (edite aqui)
-├── src/index.ts    Plugin server: hook session.prompt → carimba [dd/mm/aaaa hh:mm]
-├── src/format.ts   Formato dd/mm/aaaa hh:mm compartilhado
-├── src/tui.tsx     Plugin TUI: slot "você/agente" no composer + painel /historico
-├── package.json    exports: "." (server) e "./tui" (TUI)
-├── node_modules/   fallback local de @opencode/plugin, @opentui/*, solid-js
-└── tsconfig.json
+~/.config/opencode/plugins/time/
+├── index.ts   ← entrypoint server
+└── tui.ts     ← entrypoint TUI
 ```
 
-## Instalação (como está agora, global)
+O OpenCode carrega os dois automaticamente (o TUI recebe a lista de plugins com componente do servidor conectado — não é preciso editar o `cli.json`).
 
-Layout documentado de **descoberta global** — `~/.config/opencode/plugins/<nome>/` com os dois entrypoints:
+Reinicie o OpenCode para aplicar.
 
+**`~/.config/opencode/plugins/time/index.ts`**
+
+```ts
+import plugin from "<caminho-deste-repo>/src/index.ts"
+export default plugin
 ```
-C:\Users\julia\.config\opencode\plugins\time\
-├── index.ts   ← import server de file:///D:/sandbox/OpenCode_Plugins/time/src/index.ts
-└── tui.ts     ← import TUI de file:///D:/sandbox/OpenCode_Plugins/time/src/tui.tsx
+
+**`~/.config/opencode/plugins/time/tui.ts`**
+
+```ts
+import plugin from "<caminho-deste-repo>/src/tui.tsx"
+export default plugin
 ```
 
-- O servidor carrega `index.ts` (hook do carimbo) em todas as locations — verificado no log `loading plugin ... time/index.ts`.
-- O TUI carrega `tui.ts` automaticamente (o servidor informa a lista de plugins com componente TUI ao cliente — `cli.json` não precisa de entrada).
-- Não há entradas em `opencode.json` nem `cli.json`; só o diretório de descoberta.
+Clonando este repositório, os caminhos ficam, por exemplo:
 
-Para desenvolvimento: edite `src/` no sandbox e reinicie o OpenCode (o watcher recarrega alterações nos arquivos de config; mudanças no código-fonte via `file://` podem exigir restart). Resultado server-side pode ser testado sem gastar tokens:
+```ts
+// index.ts
+import plugin from "file:///D:/dev/opencode-time/src/index.ts"
+export default plugin
+```
 
-```sh
-SID=$(opencode api post /api/session -d '{"title":"t"}' | grep -oE 'ses_[A-Za-z0-9]+')
-opencode api post "/api/session/$SID/prompt" -d '{"text":"teste","resume":false}'
-# o texto admitido deve começar com o carimbo
-opencode api delete "/api/session/$SID"
+Reinstale as dependências do clone (`bun install`) — elas servem de fallback de resolução; as instâncias de Solid/OpenTUI do host sempre prevalecem na UI.
+
+### Por projeto
+
+O mesmo layout funciona em `<projeto>/.opencode/plugins/time/{index.ts, tui.ts}`.
+
+### Via `opencode.json` (pesquisado)
+
+```jsonc
+{
+  "plugins": ["<caminho-para-clone-deste-repo>"]
+}
 ```
 
 ## Desinstalação (sem vestígios)
 
+Apague o diretório de descoberta e reinicie:
+
 ```sh
-rm -rf "C:\\Users\\julia\\.config\\opencode\\plugins\\time"
+rm -rf ~/.config/opencode/plugins/time   # ou o .opencode equivalente do projeto
 opencode service restart
 ```
 
-Nada é escrito dentro do OpenCode: sem estado persistido (`ctx.storage` nunca usado), sem modificações em outros arquivos de config. Apenas as mensagens enviadas *enquanto o carimbo estava ativo* mantêm o prefixo `[dd/mm/aaaa hh:mm]` no seu próprio histórico.
+O plugin é 100% stateless: nada é gravado no OpenCode além do prefixo `[dd/mm/aaaa hh:mm]` no corpo das mensagens que você enviou enquanto ele estava ativo.
+
+## Como funciona
+
+| Etapa | Mecanismo |
+|---|---|
+| Carimbo | Hook `session.prompt` reescreve o texto canônico da mensagem (e desloca os offsets de `mention` dos anexos — arquivos/agentes) |
+| Seletor anti-duplicação | Regex `^\[\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}\]\s` — re-admissões de prompt não recebem selo duas vezes |
+| Slot no composer | TUI plugin em `session.composer.top` lê `data.session.message.list()` e reage a eventos do servidor (`message.created`, `session.execution.*`), ignorando deltas de streaming |
+| Painel | Slot `session.panel` + comando slash via `context.keymap.layer`, listando `time.created` nativo de cada mensagem |
 
 ## Opções
 
-No `opencode.json` (via array `plugins` com forma de objeto, ex. `{"package": "...", "options": {"stamp": false}}`):
+```jsonc
+{
+  "plugins": [
+    {
+      "package": "opencode-time",
+      "options": { "stamp": false }   // desliga o carimbo nas mensagens; slot e painel continuam
+    }
+  ]
+}
+```
 
-- `stamp` (default `true`) — desliga o carimbo nas mensagens; slot e painel continuam.
+## Estrutura
 
-## Observações técnicas
+```text
+src/
+├── index.ts   Plugin server: hook session.prompt → carimbo [dd/mm/aaaa hh:mm]
+├── format.ts  Formatação dd/mm/aaaa hh:mm compartilhada (server e TUI)
+└── tui.tsx    Plugin TUI: slot "você/agente" no composer + painel /historico
+```
 
-- O carimbo desloca os offsets de `mention` dos anexos (arquivos/agentes) ao reescrever o texto — exigência da API de hooks.
-- Re-admissões de prompt com o mesmo ID não duplicam o carimbo (guarda por regex de prefixo `[dd/mm/aaaa hh:mm]`).
-- A API TUI do OpenCode não expõe slot por mensagem no transcript; a hora da resposta do agente aparece no slot acima do composer e no painel `/historico` (que lê `time.created` nativo das mensagens).
-- Node modules locais servem de fallback de resolução; o runtime do OpenCode também injeta `@opencode/plugin` quando o pacote não existe localmente.
+## Desenvolvido com
+
+Este plugin foi criado como exemplo dos dois lados da API de plugins do OpenCode: **server** (hooks de sessão) e **TUI** (slots, painéis, comandos slash via `@opencode/plugin/tui`).
+
+## Licença
+
+MIT
